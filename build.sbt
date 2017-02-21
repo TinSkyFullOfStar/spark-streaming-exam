@@ -11,4 +11,5 @@ libraryDependencies ++= Seq(
 		"org.apache.kafka" %% "kafka-clients" % "0.10.0.0"
 		"com.typesafe.akka" % "akka-actor_2.11" % "2.5-M1"
 		"com.typesafe" % "config" % "1.3.0"
+		"org.scalaj" %% "scalaj-http" % "2.3.0"
 	)
