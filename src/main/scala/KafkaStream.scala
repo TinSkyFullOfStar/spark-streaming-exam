@@ -16,6 +16,8 @@ object KafkaStream {
     val conf = new SparkConf().setAppName("H").setMaster("local[2]")
     val ssc = new StreamingContext(conf,Seconds(2))
 
+    ssc.checkpoint("/tmp/")
+
     val broker = "localhost:9092"
     val kafkaParams = Map[String, Object](
       "bootstrap.servers" -> broker,
@@ -33,12 +35,18 @@ object KafkaStream {
       PreferConsistent,
       Subscribe[String,String](topics,kafkaParams))
     val pairs = stream.map(record => (record.value,1))
-    val count = pairs.reduceByKey(_+_)
+    val count = pairs.updateStateByKey(updateFunc)
 
     count.print()
     ssc.start()
     ssc.awaitTermination()
 
+  }
+
+
+  def updateFunc(newValue: Seq[Int],previousValue: Option[Int]) ={
+    val newVal = newValue.sum + previousValue.getOrElse(0)
+    Some(newVal)
   }
 
 }
