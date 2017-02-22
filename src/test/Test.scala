@@ -22,7 +22,7 @@ object Ma {
                   actRef,
                   message)
 
-    Thread.sleep(900)
+    Thread.sleep(7000)
 
     callBack.cancel()
     actorSystem.terminate()

@@ -3,6 +3,7 @@ package main.scala
 import akka.actor.UntypedAbstractActor
 import org.apache.kafka.clients.producer.{KafkaProducer, ProducerRecord}
 import org.json.JSONObject
+import test.KafkaProducerPool
 import org.json.JSONArray
 
 import scala.collection.mutable.ArrayBuffer
@@ -13,7 +14,7 @@ import scalaj.http.{Http, HttpResponse}
 class DataSourceActor extends UntypedAbstractActor{
   private var page = 1
   private val baseUrl = "http://web.juhe.cn:8080/finance/stock/"
-  private val secretKey = "1ddda6ea3fd8bfcfc3398ccd1f7cf0ce"
+  private val secretKey = "your-juhe-appKey"
 
   private val urlArr = Array(
                         baseUrl+"hkall?key="+secretKey+"&type=4"+"&page=",
@@ -24,61 +25,74 @@ class DataSourceActor extends UntypedAbstractActor{
   override def onReceive(message: Any):Unit = {
     var jsonArray:JSONArray = null
     var producer:KafkaProducer[String,String] = null
-    val recordsArr = new Array[Array[ProducerRecord[String,String]]](4)
+    val recordsArr = new Array[Array[ProducerRecord[String,String]]](urlArr.length)
+    var result:Array[ProducerRecord[String,String]] = null
 
-//    while(producer==null){
-//      producer = KafkaProducerPool.getProducer()
-//    }
+    while(producer==null){
+      producer = KafkaProducerPool.getProducer()
+    }
 
     for(i <- urlArr.indices){
       jsonArray = getData(i)
-//      result = formatData(jsonArray)
+      recordsArr(i) = formatData(jsonArray)
       page = 1
     }
 
 
 
-//    for(i <- recordsArr.indices;j <- recordsArr(i).indices)
-//      println("hello world")
-    //      producer.send(recordsArr(i)(j))
+    for(i <- recordsArr.indices;j <- recordsArr(i).indices)
+          producer.send(recordsArr(i)(j))
+    producer.send(new ProducerRecord[String,String]("hahaa","hello","==============================="))
+
+    println("success")
+    println("===========================")
     KafkaProducerPool.returnProducer(producer)
   }
 
   def getData(i:Int):JSONArray ={
+    val baseUrl = "http://test.url/"
     var url = ""
     var json: JSONObject = new JSONObject("{\"error_code\":0}")
     var response: HttpResponse[String] = null
     val jsonArr:JSONArray = new JSONArray()
 
-    while(json.getString("error_code").equals("0")){
-      if(page != 1)
+//    while(json.getString("error_code").equals("0")){
+//      if(page != 1)
+//        jsonArr.put(json)
+//      url = urlArr(i) + page
+//      response = Http(url).asString
+//      json = new JSONObject(response.body)
+//      page += 1
+//    }
+    for(j <- 1*(i+1) to 2*(i+1)){
+      if(page!=1)
         jsonArr.put(json)
-      url = urlArr(i) + page
+      url = baseUrl + j
       response = Http(url).asString
-      println(response.body)
       json = new JSONObject(response.body)
-      jsonArr.put(json)
       page += 1
     }
+
 
     jsonArr
   }
 
   def formatData(jsonArr:JSONArray):Array[ProducerRecord[String,String]] ={
     var jsonArray:JSONArray = null
+    var key:Any = ""
     val arr: ArrayBuffer[ProducerRecord[String,String]] = new ArrayBuffer[ProducerRecord[String, String]]()
 
     for(i <- 0 until jsonArr.length()){
-      if(page != 1)
-        jsonArray = jsonArr.getJSONObject(i).getJSONObject("result").getJSONArray("data")
+      jsonArray = jsonArr.getJSONObject(i).getJSONObject("result").getJSONArray("data")
 
       for(i <- 0 until jsonArray.length()){
         val keys = jsonArray.getJSONObject(i).keys()
 
         while(keys.hasNext){
-            arr.append(new ProducerRecord[String,String]("world",
-              keys.next().toString,
-              jsonArray.getJSONObject(i).getString(keys.next().toString))
+          key = keys.next()
+            arr.append(new ProducerRecord[String,String]("hahaa",
+              key.toString,
+              jsonArray.getJSONObject(i).getString(key.toString))
           )
         }
 
