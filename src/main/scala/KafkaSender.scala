@@ -1,30 +1,57 @@
 package main.scala
 
+import java.util.concurrent.TimeUnit
 
-import java.util.concurrent.DelayQueue
+import akka.actor.{ActorRef, ActorSystem, Props}
+
+import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.ExecutionContext.Implicits.global
+
 
 /**
   * Created by tinsky on 17-2-17.
   */
-class KafkaSender(task: TaskTrait) extends Runnable{
-  private val delayQueue:DelayQueue[TaskTrait] = new DelayQueue[TaskTrait]()
-  private val menTask = task
+class KafkaSender{
+  private var runtime: Long = 15000
+  private var timeSpan: Long = 500
+  private var delayedTime: Long = 0
+  private var delayedTimeUnit: TimeUnit = TimeUnit.NANOSECONDS
+  private var timeSpanUnit: TimeUnit = TimeUnit.MILLISECONDS
 
-  def this()={
-    this(new HttpTask(9))
-    delayQueue.add(this.menTask)
+  def setTerminalTime(time: Long): Unit ={
+      this.runtime = time
   }
 
-  override def run() = {
-    try{
-        delayQueue.take().run()
-    }catch {
-      case e: Exception => e.printStackTrace()
-    }
+  def setTimeSpan(span:Long): Unit ={
+    this.timeSpan = span
   }
 
-  def addTask(t: TaskTrait) = {
-    delayQueue.add(t)
-    println("add successful")
+  def setDelayedTime(delayed: Long): Unit ={
+    this.delayedTime = delayed
   }
+
+  def setDelayedTimeUnit(delayedUnit: TimeUnit): Unit ={
+    this.delayedTimeUnit = delayedUnit
+  }
+
+  def setTimeSpanUnit(spanUnit: TimeUnit): Unit ={
+    this.timeSpanUnit =spanUnit
+  }
+
+  def pushDataToKafka(): Unit ={
+    val actorSystem = ActorSystem.create("test")
+    val actRef: ActorRef = actorSystem.actorOf(Props[DataSourceActor],"first")
+
+    val message = 1
+    val callBack = actorSystem.scheduler.schedule(FiniteDuration(delayedTime,delayedTimeUnit),
+      FiniteDuration(timeSpan,TimeUnit.MILLISECONDS),
+      actRef,
+      message)
+
+    Thread.sleep(runtime)
+
+    callBack.cancel()
+    actorSystem.terminate()
+  }
+
 }
